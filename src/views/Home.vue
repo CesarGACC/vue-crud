@@ -1,6 +1,5 @@
 <template>
   <div class="home">
-    
     <div>
       <div class="table-header">
           <h1>Manage Products</h1>
@@ -38,10 +37,12 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="productHistoryDialog" :style="{width: '800px'}" header="Product History" :modal="true" class="p-fluid">
-            <div class="card">
-              <h5>Basic</h5>
-              <Chart type="line" :data="basicData" :options="basicOptions" />
+        <Dialog v-model:visible="productHistoryDialog" v-if="historyChartReady" :style="{width: '800px'}" header="Product History" :modal="true" class="p-fluid">
+            <div class="Chart">
+              <h4>{{productHistory.name}}</h4>
+              <div>
+                <Chart :key="series" v-if="historyChartReady" :chartOptions="chartOptions" :series="series"/>
+              </div>
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="hideHistoryDialog"/>
@@ -72,7 +73,7 @@
             </Column>
             <Column :exportable="false">
                 <template #body="slotProps">
-                    <Button icon="pi pi-table" class="p-button-rounded" @click="handleHistoryClick(slotProps.data)" />
+                    <Button icon="pi pi-table" class="p-button-rounded p-mr-2" @click="handleHistoryClick(slotProps.data)" />
                     <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="handleDeleteClick(slotProps.data)" />
                 </template>
             </Column>
@@ -84,12 +85,33 @@
 <script>
 // @ is an alias to /src
 import api from "../service/LaravelApi";
+import Chart from '../components/LineChart.vue'
 
 export default {
   name: 'Home',
+  components:{
+    Chart
+  },
   data()
   {
     return {
+      chartOptions: {
+        chart: {
+          id: 'Line-Chart'
+        },
+        xaxis: {
+          categories: []
+        }
+      },
+      series: [{
+        name: 'Quantity',
+        data: []
+      },{
+        name: 'Price',
+        data: []
+      },
+      
+      ],  
       edited:false,
       product: {},
       newProducts:[],
@@ -98,10 +120,11 @@ export default {
       submitted: false,
       productDialog: false,
       productHistoryDialog: false,
-      productHistory:{},
+      productHistory:undefined,
+      historyChart:[],
+      historyChartReady:false,
       columns:undefined,
-      list:undefined
-      
+      list:undefined,
     }
   },
   originalRows: null,
@@ -177,8 +200,13 @@ export default {
 
     hideHistoryDialog() 
     {
-      this.productHistory = {};
+      this.productHistory = null;
       this.productHistoryDialog = false;
+      this.historyChart = null;
+      this.historyChartReady = true;
+      this.series[0].data = [];
+      this.series[1].data = [];
+      this.chartOptions.xaxis.categories = [];
     },
 
     async saveProduct() {
@@ -218,21 +246,29 @@ export default {
 
     async handleHistoryClick(product)
     {
-      
-            /*basicData: {
-                labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-                datasets: [
-                    {
-                        label: 'First Dataset',
-                        data: [65, 59, 80, 81, 56, 55, 40],
-                        fill: false,
-                        borderColor: '#42A5F5'
-                    },
-                ]
-            },*/
+      let id = product.id;
       this.productHistory = product;
+      const data = await this.api.getProductHistoryInChart(id);
+      this.series[0].data = [];
+      this.series[1].data = [];
+      this.chartOptions.xaxis.categories = [];
+      let i=0;
+      data.forEach(d => {
+        const {
+          quantity,
+          price,
+        } = d;
+
+        //this.historyChart.push({created_at, total: quantity});
+        this.series[0].data.push(quantity)
+        this.series[1].data.push(price)
+        this.chartOptions.xaxis.categories.push(i);
+        i++;
+      });
+      this.historyChartReady = true;
+      console.log(this.series[0].data);
+      console.log(this.chartOptions.xaxis.categories);
       this.productHistoryDialog = true;
-      console.log(product);
     },
 
     async handleDeleteClick(product)

@@ -2,9 +2,19 @@ import axios from 'axios';
 const url = 'http://127.0.0.1:8000/api/';
 
 export default class LaravelApi {
+
     async getProducts() {
         return await axios
             .get(url+'products')
+            .then(res=>{
+            console.log(res.data);
+            return res.data
+            })
+    }
+
+    async getHistory(id) {
+        return await axios
+            .get(url+'history/'+id)
             .then(res=>{
             console.log(res.data);
             return res.data
@@ -44,6 +54,7 @@ export default class LaravelApi {
 
     async createProducts(products)
     {
+        console.log(products);
         if(products)
         {
             let array = [];
@@ -84,9 +95,26 @@ export default class LaravelApi {
         }
     }
 
-    async getProductHistory(id)
+    async getProductHistoryInChart(id)
     {
-        console.log('di',id);
+        let history = [];
+        let data =[];
+        history = await this.getHistory(id);
+
+        /*axis = quantity*/
+        
+        let lastquantity = -1;
+        history.forEach(element => {
+            if(element)
+            {
+                if(lastquantity!=element.quantity)
+                {
+                    data = [...data,element]
+                }
+            }
+                
+        });
+        return data;
     }
 }
     
